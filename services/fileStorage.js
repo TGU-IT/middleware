@@ -32,7 +32,6 @@ async function saveInputXml(uploadId, buffer) {
     }
 }
 
-
 // save request info
 async function saveRequestInfoXml(uploadId, info) {
     const builder = new xml2js.Builder();

@@ -7,14 +7,14 @@ const uploadRoute = require('./routes/upload');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Autoriser le CORS pour toutes les origines (adapter en prod)
+// Authorize CORS for all origins (adapt for production)
 app.use(cors({
-    origin: '*', // Remplace '*' par l'URL de ton front-end en production
+    origin: '*', // Replace '*' with your frontend URL in production
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
-// Exposer le dossier uploads pour accès aux fichiers depuis le front
+// Expose the uploads folder for access to files from the frontend
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/upload', uploadRoute);

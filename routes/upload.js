@@ -25,6 +25,7 @@ const upload = multer({
 
 // Upload route
 router.post('/', upload.single('file'), async (req, res) => {
+    let uploadId;
     try {
         // User info
         const { email, name, company, phone } = req.body;
@@ -32,7 +33,7 @@ router.post('/', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No XML file uploaded.' });
         }
         // Generate unique upload ID
-        const uploadId = generateUploadId();
+        uploadId = generateUploadId();
         // Save input.xml and request_info.xml
         await fileStorage.saveInputXml(uploadId, req.file.buffer);
         await fileStorage.saveRequestInfoXml(uploadId, { email, name, company, phone });

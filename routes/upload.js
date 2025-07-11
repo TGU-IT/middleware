@@ -51,7 +51,11 @@ router.post('/', upload.single('file'), async (req, res) => {
             throw new Error('Unknown backend response type');
         }
     } catch (err) {
-        return res.status(500).json({ error: err.message });
+        if (uploadId) {
+            return res.status(500).json({ error: err.message, uploadId });
+        } else {
+            return res.status(500).json({ error: err.message });
+        }
     }
 });
 

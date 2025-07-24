@@ -5,6 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 const fileStorage = require('../services/fileStorage');
 const backendClient = require('../services/backendClient');
 const generateUploadId = require('../utils/generateUploadId');
+const fs = require('fs');
+const pendingUploads = require('../pendingUploads');
 
 const MAX_FILE_SIZE_MB = process.env.MAX_FILE_SIZE_MB ? parseInt(process.env.MAX_FILE_SIZE_MB) : 2;
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -23,34 +25,54 @@ const upload = multer({
     }
 });
 
+module.exports.pendingUploads = pendingUploads;
+
 // Upload route
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', upload.fields([
+    { name: 'data', maxCount: 1 },
+    { name: 'flowData', maxCount: 1 },
+    { name: 'file', maxCount: 1 }
+]), async (req, res) => {
     let uploadId;
     try {
-        // User info
-        const { email, name, company, phone } = req.body;
-        if (!req.file) {
+        const io = req.app.get('io');
+        const uploadSockets = req.app.get('uploadSockets');
+
+        // user info and additional fields
+        const { email, name, company, phone, correlationId, modelpath, flowId, priority } = req.body;
+
+        // files
+        const dataFile = req.files['data'] ? req.files['data'][0] : null;
+        const flowDataFile = req.files['flowData'] ? req.files['flowData'][0] : null;
+        const mainFile = req.files['file'] ? req.files['file'][0] : null;
+        let flowDataBuffer;
+        if (flowDataFile) {
+            flowDataBuffer = flowDataFile.buffer;
+        } else {
+            // if not uploaded, use a static file
+            flowDataBuffer = fs.readFileSync(path.join(__dirname, '../utils/FlowDataSimple.xml'));
+        }
+        if (!mainFile && !dataFile) {
             return res.status(400).json({ error: 'No XML file uploaded.' });
         }
-        // Generate unique upload ID
+        // generate unique ID
         uploadId = generateUploadId();
-        // Save input.xml and request_info.xml
-        await fileStorage.saveInputXml(uploadId, req.file.buffer);
+        // save input.xml and request_info.xml
+        await fileStorage.saveInputXml(uploadId, (dataFile ? dataFile.buffer : mainFile.buffer));
         await fileStorage.saveRequestInfoXml(uploadId, { email, name, company, phone });
-        // Call backend API
-        const backendResult = await backendClient.validateXml(uploadId, req.file.buffer);
-        // Save backend result
-        if (backendResult.type === 'pdf') {
-            await fileStorage.saveOutputPdf(uploadId, backendResult.data);
-            // Return PDF preview URL or file
-            return res.json({ uploadId, pdfUrl: `/uploads/${uploadId}/output.pdf` });
-        } else if (backendResult.type === 'validation') {
-            await fileStorage.saveValidationXml(uploadId, backendResult.data);
-            // Return error details
-            return res.status(422).json({ uploadId, errors: backendResult.errors });
-        } else {
-            throw new Error('Unknown backend response type');
-        }
+        // prepare options for generateAndFetchPDF
+        const options = {
+            data: dataFile ? dataFile.buffer : mainFile.buffer,
+            flowData: flowDataBuffer,
+            correlationId,
+            modelpath,
+            flowId,
+            priority
+        };
+        // store the upload in pending
+        pendingUploads.set(uploadId, { options });
+        // respond immediately with the uploadId
+        return res.json({ uploadId, status: 'PROCESSING' });
     } catch (err) {
         if (uploadId) {
             return res.status(500).json({ error: err.message, uploadId });

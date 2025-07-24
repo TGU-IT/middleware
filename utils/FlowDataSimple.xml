@@ -1,0 +1,35 @@
+<FLOWDATA>
+	<!-- Static predefined tags -->
+	<STATIC>
+		<!--<MODELS>
+			<MODEL>
+				<PATH>/PublishStore-demo/dev/Test/TEST/en-US/compiled.lgp</PATH>
+				<FILENAME>Template_lgp</FILENAME>
+				<DESCRIPTION>lgp document</DESCRIPTION>
+			</MODEL>
+			<MODEL>
+				<PATH>/PublishStore-demo/dev/Test/TESTMAIL/en-US/compiled.cep</PATH>
+				<FILENAME>Template_cep</FILENAME>
+				<DESCRIPTION>cep document</DESCRIPTION>
+			</MODEL>
+		</MODELS>-->
+	</STATIC>
+	<GENERATOR>
+		<!--<PDFVERSION>PDFA1A</PDFVERSION>  Default is PDF_1_4 -->
+		
+	</GENERATOR>
+	<MAILER>
+     <SUBJECT>HTML</SUBJECT>
+     <FROM>sdd-noreply@contraste.com</FROM>
+     <TO_LIST>
+        
+		<TO>
+           <ADDRESS>sdd-info@contraste.com</ADDRESS>
+           <HASNAME>false</HASNAME><!--
+           <NAME>Bla bla bla bla</NAME>-->
+        </TO>
+     </TO_LIST>
+	 <MAILID>3c8270f6f27643a6afe83906f57cce12</MAILID>
+  </MAILER>
+  
+</FLOWDATA>

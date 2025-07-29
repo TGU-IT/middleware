@@ -26,6 +26,28 @@ const io = new Server(httpServer, {
 // Map uploadId -> Set of sockets
 const uploadSockets = new Map();
 
+
+// --- Worker Pool for PDF generation ---
+const MAX_CONCURRENT_JOBS = 20;
+let runningJobs = 0;
+const jobQueue = [];
+
+function enqueueJob(jobFn) {
+    if (runningJobs < MAX_CONCURRENT_JOBS) {
+        runningJobs++;
+        jobFn().finally(() => {
+            runningJobs--;
+            if (jobQueue.length > 0) {
+                const nextJob = jobQueue.shift();
+                enqueueJob(nextJob);
+            }
+        });
+    } else {
+        jobQueue.push(jobFn);
+    }
+}
+// --- End worker pool ---
+
 // for each connection, we create a socket
 // the socket is used to send status updates to the client
 // the socket is used to send the output PDF to the client
@@ -41,17 +63,20 @@ io.on('connection', (socket) => {
         // Check the presence of the upload in pending
         const pending = pendingUploads.get(uploadId);
         if (pending) {
-            (async () => {
+            // Utilisation de la worker pool :
+            enqueueJob(async () => {
                 try {
                     const backendResult = await backendClient.generateAndFetchPDF(pending.options, (statusUpdate) => {
-                        if (statusUpdate.status === 'PDF_READY' || statusUpdate.status === 'FINISHED') return;
+                        if (statusUpdate.status === 'PDF_READY' || statusUpdate.status === 'FINISHED') {
+                            return;
+                        }
                         if (uploadSockets.has(uploadId)) {
                             for (const socket of uploadSockets.get(uploadId)) {
                                 socket.emit('status', { uploadId, ...statusUpdate });
                             }
                         }
-                    });
-                    if (backendResult.type === 'pdf') {
+                    }); // <-- NE PAS ajouter () ici !
+                    if (backendResult.type === 'pdf') {;
                         await fileStorage.saveOutputPdf(uploadId, backendResult.data);
                         if (uploadSockets.has(uploadId)) {
                             for (const socket of uploadSockets.get(uploadId)) {
@@ -75,7 +100,7 @@ io.on('connection', (socket) => {
                     }
                     console.error('ERROR ASYNC PROCESSING:', err);
                 }
-            })();
+            });
             pendingUploads.delete(uploadId);
         }
     });
@@ -105,6 +130,8 @@ app.use(cors({
 // Expose the uploads folder for access to files from the frontend
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Suppression du batching/concurrency control
+// Traitement immédiat des requêtes /upload
 app.use('/upload', uploadRoute);
 
 app.get('/', (req, res) => {

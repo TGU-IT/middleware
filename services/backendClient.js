@@ -24,7 +24,7 @@ function formatUrl(url, params) {
 }
 
 // polling status
-async function waitForStatus(requestId, maxTries = 20, delayMs = 3000, onStatus) {
+async function waitForStatus(requestId, maxTries = 200, delayMs = 3000, onStatus) {
   const basicAuth = Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
   for (let i = 0; i < maxTries; i++) {
     const statusUrl = formatUrl(BACKEND_API_URL_GET_STATUS, { requestId });
@@ -58,19 +58,21 @@ async function waitForStatus(requestId, maxTries = 20, delayMs = 3000, onStatus)
       if (onStatus) {
         onStatus({ status, errorMessage, errorCode });
       }
-      if (status === 'FINISHED') {
+      
+      if (status === 'PDF_READY' || status === 'FINISHED') {
         return Array.isArray(documentIds) && documentIds.length > 0 ? documentIds[0] : documentId;
       }
       if (status === 'FAILED') {
         throw new Error(errorMessage || 'PDF generation failed');
       }
     } catch (err) {
-      console.error('Erreur lors du polling status:', err.response ? err.response.data : err.message);
+      console.error('Error polling status:', err.response ? err.response.data : err.message);
       throw err;
     }
     await new Promise(resolve => setTimeout(resolve, delayMs));
   }
-  throw new Error('Timeout waiting for PDF generation');
+  console.error(`[waitForStatus] TIMEOUT for requestId=${requestId} after ${maxTries * delayMs / 1000}s`);
+  throw new Error(`Timeout waiting for PDF generation (requestId=${requestId})`);
 }
 
 // main function
@@ -141,7 +143,7 @@ async function generateAndFetchPDF(options = {}, onStatus) {
   }
   
   // 3. polling status
-  const documentId = await waitForStatus(requestId, 20, 3000, onStatus);
+  const documentId = await waitForStatus(requestId, 200, 3000, onStatus);
 
   // 4. get the document
   const basicAuthentication = Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');

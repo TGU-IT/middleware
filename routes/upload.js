@@ -3,7 +3,6 @@ const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const fileStorage = require('../services/fileStorage');
-const backendClient = require('../services/backendClient');
 const generateUploadId = require('../utils/generateUploadId');
 const fs = require('fs');
 const pendingUploads = require('../pendingUploads');
@@ -43,15 +42,17 @@ router.post('/', upload.fields([
 
         // files
         const dataFile = req.files['data'] ? req.files['data'][0] : null;
-        const flowDataFile = req.files['flowData'] ? req.files['flowData'][0] : null;
         const mainFile = req.files['file'] ? req.files['file'][0] : null;
+        
+        const flowDataPath = process.env.FLOW_DATA_FILE_PATH ;
         let flowDataBuffer;
-        if (flowDataFile) {
-            flowDataBuffer = flowDataFile.buffer;
-        } else {
-            // if not uploaded, use a static file
-            flowDataBuffer = fs.readFileSync(path.join(__dirname, '../utils/FlowDataSimple.xml'));
+        try {
+            flowDataBuffer = fs.readFileSync(flowDataPath);
+        } catch (error) {
+            console.error(`[UPLOAD] Error loading FlowData: ${error.message}`);
+            return res.status(500).json({ error: 'Error loading FlowData' });
         }
+        
         if (!mainFile && !dataFile) {
             return res.status(400).json({ error: 'No XML file uploaded.' });
         }

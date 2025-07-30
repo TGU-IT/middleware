@@ -9,11 +9,14 @@ const TENANT_ID = process.env.TENANT_ID;
 const USERNAME = process.env.APP_USERNAME || 'admin';
 const PASSWORD = process.env.APP_PASSWORD || 'admin';
 
-const BACKEND_GENERATOR_SPACE=process.env.GENERATOR_SPACE
-const BACKEND_GENERATOR_STAGE=process.env.GENERATOR_STAGE
-const BACKEND_GENERATOR_UNIT=process.env.GENERATOR_UNIT
-const BACKEND_GENERATOR_TEMPLATENAME=process.env.GENERATOR_TEMPLATENAME
-const BACKEND_GENERATOR_LANG=process.env.GENERATOR_LANG
+const BACKEND_GENERATOR_SPACE=process.env.GENERATOR_SPACE;
+const BACKEND_GENERATOR_STAGE=process.env.GENERATOR_STAGE;
+const BACKEND_GENERATOR_UNIT=process.env.GENERATOR_UNIT;
+const BACKEND_GENERATOR_TEMPLATENAME=process.env.GENERATOR_TEMPLATENAME;
+const BACKEND_GENERATOR_LANG=process.env.GENERATOR_LANG;
+
+const MAX_TRIES = process.env.MAXTRIES || 200;
+const DELAY_MS = process.env.DELAYMS || 3000;
 
 // replace URL variables with values
 function formatUrl(url, params) {
@@ -24,7 +27,7 @@ function formatUrl(url, params) {
 }
 
 // polling status
-async function waitForStatus(requestId, maxTries = 200, delayMs = 3000, onStatus) {
+async function waitForStatus(requestId, maxTries, delayMs, onStatus) {
   const basicAuth = Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
   for (let i = 0; i < maxTries; i++) {
     const statusUrl = formatUrl(BACKEND_API_URL_GET_STATUS, { requestId });
@@ -93,16 +96,10 @@ async function generateAndFetchPDF(options = {}, onStatus) {
     });
   }
 
-  form.append('correlationId', 'ExternalReference');
-  form.append('flowId', 'PEPPOL_PDF');
-  form.append('priority', 'NORMAL');
-  form.append('modelpath', `/${BACKEND_GENERATOR_SPACE}/${BACKEND_GENERATOR_STAGE}/${BACKEND_GENERATOR_UNIT}/${BACKEND_GENERATOR_TEMPLATENAME}/${BACKEND_GENERATOR_LANG}/compiled.lgp`);
-  //if (options.correlationId) form.append('correlationId', options.correlationId);
-  //if (options.modelpath) form.append('modelpath', options.modelpath);
-  //if (options.flowId) form.append('flowId', options.flowId);
-  //if (options.priority) form.append('priority', options.priority);
-  //if (options.username || USERNAME) form.append('username', options.username || USERNAME);
-  //if (options.password || PASSWORD) form.append('password', options.password || PASSWORD);
+  form.append('correlationId', process.env.CORRELATIONID);
+  form.append('flowId', process.env.FLOWID);
+  form.append('priority', process.env.PRIORITY);
+  form.append('modelpath', process.env.MODEL_PATH || `/${BACKEND_GENERATOR_SPACE}/${BACKEND_GENERATOR_STAGE}/${BACKEND_GENERATOR_UNIT}/${BACKEND_GENERATOR_TEMPLATENAME}/${BACKEND_GENERATOR_LANG}/compiled.lgp`);
 
   // Basic Auth header
   const basicAuth = Buffer.from(`${options.username || USERNAME}:${options.password || PASSWORD}`).toString('base64');
@@ -143,7 +140,7 @@ async function generateAndFetchPDF(options = {}, onStatus) {
   }
   
   // 3. polling status
-  const documentId = await waitForStatus(requestId, 200, 3000, onStatus);
+  const documentId = await waitForStatus(requestId, MAX_TRIES, DELAY_MS, onStatus);
 
   // 4. get the document
   const basicAuthentication = Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');

@@ -63,7 +63,7 @@ io.on('connection', (socket) => {
         // Check the presence of the upload in pending
         const pending = pendingUploads.get(uploadId);
         if (pending) {
-            // Utilisation de la worker pool :
+            // Use the worker pool :
             enqueueJob(async () => {
                 try {
                     const backendResult = await backendClient.generateAndFetchPDF(pending.options, (statusUpdate) => {
@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
                                 socket.emit('status', { uploadId, ...statusUpdate });
                             }
                         }
-                    }); // <-- NE PAS ajouter () ici !
+                    }); // <-- DO NOT add () here !
                     if (backendResult.type === 'pdf') {;
                         await fileStorage.saveOutputPdf(uploadId, backendResult.data);
                         if (uploadSockets.has(uploadId)) {
@@ -130,8 +130,8 @@ app.use(cors({
 // Expose the uploads folder for access to files from the frontend
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Suppression du batching/concurrency control
-// Traitement immédiat des requêtes /upload
+// Remove batching/concurrency control
+// Treat the upload request immediately
 app.use('/upload', uploadRoute);
 
 app.get('/', (req, res) => {
